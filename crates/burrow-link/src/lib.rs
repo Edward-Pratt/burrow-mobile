@@ -3,7 +3,9 @@
 
 mod error;
 mod files;
+pub mod hostkey;
 pub mod keys;
+pub mod link;
 pub mod pairing;
 
 pub use error::{Error, Result};

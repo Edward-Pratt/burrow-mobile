@@ -17,6 +17,23 @@ pub enum Error {
     Invalid { field: &'static str, reason: String },
     #[error("{0} is damaged: {1}")]
     Damaged(PathBuf, String),
+    /// The computer isn't pinned yet: the user must compare `fingerprint`
+    /// with its host key, then pin `key`.
+    #[error("new computer: check that its host key is {fingerprint}")]
+    NewHostKey { fingerprint: String, key: String },
+    #[error(
+        "the computer's host key changed: it was {pinned}, now it is {offered}. \
+         If you didn't reinstall it or change its keys, someone may be in between"
+    )]
+    HostKeyChanged { pinned: String, offered: String },
+    #[error("couldn't reach {0}")]
+    Unreachable(String),
+    #[error("the computer refused the phone's key: add its line to ~/.ssh/authorized_keys there")]
+    KeyRefused,
+    #[error("SSH: {0}")]
+    Ssh(String),
+    #[error("burrowd: {0}")]
+    Daemon(String),
 }
 
 impl Error {

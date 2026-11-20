@@ -49,6 +49,11 @@ impl PhoneKey {
         dir.join(FILE)
     }
 
+    /// For signing in; stays inside this crate.
+    pub(crate) fn private(&self) -> &PrivateKey {
+        &self.key
+    }
+
     /// `ssh-ed25519 AAAA… burrow-mobile`.
     pub fn public_line(&self) -> String {
         let public = self.key.public_key();
