@@ -6,7 +6,7 @@ The phone is a client of `burrowd`, not a copy of it. It signs in to that comput
 
 ## Status
 
-Milestone 20 of Burrow: work in progress. v1 covers pairing, hosts with alert badges, the monitor page with live samples and trends, alerts, and the agent-install prompt. Terminals and alerts while the app is closed come later.
+v1 (Burrow milestone 20) covers pairing, hosts with alert badges, the monitor page with live samples and trends, alerts, and the agent-install prompt. Milestone 21 adds shells: a terminal on any host, behind the phone's fingerprint or PIN, which keeps running in `burrowd` when the screen locks and shows what it printed meanwhile when you come back. Alerts while the app is closed come later.
 
 ## Building
 
