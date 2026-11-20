@@ -11,6 +11,7 @@
   import KeyBar from "../components/KeyBar.svelte";
   import { daemon } from "../lib/api";
   import { Shell, type ShellStatus } from "../lib/shell";
+  import { follow } from "../lib/typing";
   import { app } from "../lib/state.svelte";
   import { clean } from "../lib/text";
   import type { Node, SessionId } from "../lib/types";
@@ -19,6 +20,7 @@
     $props();
 
   let element: HTMLDivElement;
+  let keyboard: HTMLTextAreaElement;
   let status = $state<ShellStatus>({ state: "connecting" });
   let ctrl = $state(false);
   let alt = $state(false);
@@ -50,10 +52,11 @@
     const fit = new FitAddon();
     term.loadAddon(fit);
     term.open(element);
-    const input = element.querySelector("textarea");
-    for (const [name, value] of [["autocorrect", "off"], ["autocapitalize", "none"], ["spellcheck", "false"]]) {
-      input?.setAttribute(name, value);
-    }
+    // The keyboard types into our own box, never into xterm's: a tap that
+    // would focus xterm's moves the focus over.
+    const theirs = element.querySelector("textarea");
+    theirs?.setAttribute("inputmode", "none");
+    theirs?.addEventListener("focus", () => keyboard.focus({ preventScroll: true }));
     fit.fit();
     shell = new Shell(node.id, session, {
       get cols() { return term.cols; },
@@ -61,13 +64,16 @@
       write: (data, done) => term.write(data, done),
       reset: () => term.reset(),
     }, (s) => (status = s));
-    term.onData((data) => shell?.type(modified(data)));
+    // Typed in our box, or xterm answering a query from the server.
+    const unfollow = follow(keyboard, (data) => shell?.type(modified(data)));
+    term.onData((data) => shell?.type(data));
     term.onResize(({ cols, rows }) => shell?.resize(cols, rows));
     const observer = new ResizeObserver(() => fit.fit());
     observer.observe(element);
     void shell.start();
     return () => {
       observer.disconnect();
+      unfollow();
       shell?.stop();
       term.dispose();
     };
@@ -98,6 +104,14 @@
     <button class="plain" onclick={close}>End shell…</button>
   </div>
   <div class="term" bind:this={element}></div>
+  <textarea
+    class="keyboard"
+    bind:this={keyboard}
+    aria-label="Type into the shell"
+    autocomplete="off"
+    autocapitalize="none"
+    spellcheck="false"
+  ></textarea>
   {#if status.state === "locked"}
     <div class="over">
       <p>Shells are locked.</p>
@@ -137,6 +151,18 @@
     flex: 1;
     min-height: 0;
     padding: 4px;
+  }
+  /* Out of sight but focusable, so the phone's keyboard comes up for it.
+     At the top, so the page never scrolls to bring it into view. */
+  .keyboard {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 1px;
+    height: 1px;
+    opacity: 0;
+    font-size: 16px;
+    resize: none;
   }
   .over {
     position: absolute;

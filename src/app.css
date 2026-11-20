@@ -43,6 +43,7 @@ body {
 #app {
   display: flex;
   flex-direction: column;
+  height: var(--viewport-height, 100%);
 }
 
 button {

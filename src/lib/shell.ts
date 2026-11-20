@@ -50,6 +50,8 @@ export class Shell {
   private retry = FIRST_RETRY;
   private timer: ReturnType<typeof setTimeout> | undefined;
   private stopped = false;
+  private typed = "";
+  private sending = false;
 
   constructor(
     private readonly node: NodeId,
@@ -128,11 +130,26 @@ export class Shell {
   }
 
   /// What the user typed, already turned into the bytes a terminal sends.
+  /// Commands run side by side in the bridge, so one write at a time is
+  /// sent, with whatever was typed meanwhile, or keys could swap places.
   type(data: string) {
     if (this.muted || this.session === null) return;
-    daemon.write(this.session, toBase64(data)).catch((e) => {
-      if (isLocked(e)) this.status({ state: "locked" });
-    });
+    this.typed += data;
+    if (!this.sending) void this.send(this.session);
+  }
+
+  private async send(session: SessionId) {
+    this.sending = true;
+    while (this.typed) {
+      const data = this.typed;
+      this.typed = "";
+      try {
+        await daemon.write(session, toBase64(data));
+      } catch (e) {
+        if (isLocked(e)) this.status({ state: "locked" });
+      }
+    }
+    this.sending = false;
   }
 
   resize(cols: number, rows: number) {
