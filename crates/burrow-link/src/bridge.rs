@@ -88,8 +88,8 @@ impl Bridge {
         conn.execute(command).await
     }
 
-    /// Tries again now: the app came back to the front, or the user asked.
-    /// A connection that still answers is kept.
+    /// Tries again now: the app came back to the front, a network came or
+    /// went, or the user asked. A connection that still answers is kept.
     pub fn reconnect(&self) {
         self.inner.wake.notify_one();
     }
@@ -153,8 +153,9 @@ async fn run(inner: Arc<Inner>) {
                 () = tokio::time::sleep(wait) => {}
                 () = inner.wake.notified() => backoff.reset(),
             },
-            // Only the user can move it on: pairing, pinning, or adding
-            // the key's line on the computer.
+            // No timer: only the user can move it on, by pairing, pinning,
+            // or adding the key's line on the computer. A wake still tries
+            // again, in case they did that last one.
             None => {
                 inner.wake.notified().await;
                 backoff.reset();

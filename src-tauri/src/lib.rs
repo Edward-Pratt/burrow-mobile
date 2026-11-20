@@ -3,6 +3,7 @@
 
 mod commands;
 mod local_network;
+mod network;
 
 use std::sync::{Arc, Mutex};
 
@@ -16,6 +17,7 @@ pub(crate) struct LastState(pub Mutex<LinkState>);
 pub fn run() {
     tauri::Builder::default()
         .plugin(local_network::plugin())
+        .plugin(network::plugin())
         .setup(|app| {
             let dir = app.path().app_data_dir()?;
             app.manage(LastState(Mutex::new(LinkState::Connecting)));
@@ -33,6 +35,7 @@ pub fn run() {
             });
             // The bridge spawns onto the runtime it starts in.
             let bridge = tauri::async_runtime::block_on(async { Bridge::start(dir, sink) });
+            network::watch(app.handle(), bridge.clone());
             app.manage(bridge);
             Ok(())
         })

@@ -1,6 +1,6 @@
 //! How long to wait before connecting again: 2 s, doubling to a minute, so
 //! a computer that is off isn't dialled every second, and back to 2 s once
-//! a connection works or the user brings the app back.
+//! a connection works, the user brings the app back, or a network comes.
 
 use std::time::Duration;
 
