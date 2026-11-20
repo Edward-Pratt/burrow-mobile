@@ -17,6 +17,25 @@ pnpm install
 cargo tauri android build --apk --target aarch64
 ```
 
+## A release for your phone
+
+The app id and the signing key can't change later without reinstalling and pairing again, so make the key once and keep it safe, outside the repository:
+
+```sh
+keytool -genkeypair -v -keystore ~/.android/burrow-release.jks -alias burrow \
+  -keyalg RSA -keysize 4096 -validity 10000
+```
+
+Then name it in `src-tauri/gen/android/keystore.properties`, which git ignores:
+
+```properties
+storeFile=/home/you/.android/burrow-release.jks
+keyAlias=burrow
+password=…
+```
+
+`cargo tauri android build --apk --target aarch64` then signs the release, at `src-tauri/gen/android/app/build/outputs/apk/universal/release/`. Without the file it comes out unsigned. Install it with `adb install` or by opening it on the phone.
+
 ## License
 
 GPL-3.0, like Burrow.
