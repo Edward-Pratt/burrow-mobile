@@ -4,6 +4,7 @@
 pub mod allow;
 mod backoff;
 pub mod bridge;
+mod conn;
 mod error;
 mod files;
 pub mod hostkey;
