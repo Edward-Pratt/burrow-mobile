@@ -42,6 +42,10 @@ export type SessionInfo = {
   node: NodeId;
   kind: string;
   background?: boolean;
+  /// A terminal that outlives its connection: the phone's shells.
+  kept?: boolean;
+  /// A kept terminal someone is reading now, maybe this phone.
+  attached?: boolean;
 } & SessionState;
 
 export interface Prompt {
