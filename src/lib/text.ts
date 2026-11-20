@@ -1,8 +1,9 @@
 // Text from servers is shown only as text, never as HTML, and loses
 // control characters and the bidirectional overrides that can make it
-// read differently from what it is.
+// read differently from what it is. Newlines and tabs stay: prompts are
+// written in lines, and as text they can't do anything.
 
-const UNSAFE = /[\u0000-\u001f\u007f-\u009f‎‏‪-‮⁦-⁩]/g;
+const UNSAFE = /[\u0000-\u0008\u000b-\u001f\u007f-\u009f\u200e\u200f\u202a-\u202e\u2066-\u2069]/g;
 
 export function clean(text: string): string {
   return text.replace(UNSAFE, "");
