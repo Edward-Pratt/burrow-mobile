@@ -1,11 +1,7 @@
 {
   "$schema": "../gen/schemas/desktop-schema.json",
   "identifier": "default",
-  "description": "enables the default permissions",
-  "windows": [
-    "main"
-  ],
-  "permissions": [
-    "core:default"
-  ]
+  "description": "The app's own commands, which need no permission, and listening for the bridge's events. No plugins: no files, shell or HTTP.",
+  "windows": ["main"],
+  "permissions": ["core:event:allow-listen", "core:event:allow-unlisten"]
 }

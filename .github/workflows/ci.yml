@@ -35,6 +35,9 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y libwebkit2gtk-4.1-dev librsvg2-dev libxdo-dev openssh-server
+          # sshd refuses to start without its privilege-separation folder,
+          # which only the service unit creates.
+          sudo mkdir -p /run/sshd
 
       - name: Set up Rust
         run: |

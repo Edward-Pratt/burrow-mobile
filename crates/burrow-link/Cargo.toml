@@ -8,3 +8,14 @@ license.workspace = true
 repository.workspace = true
 
 [dependencies]
+burrow-api = { git = "https://github.com/Edward-Pratt/burrow", rev = "24c4133fe7690028b159e57f07d25f04fef51575" }
+rand = "0.10"
+russh = { version = "0.64", default-features = false, features = ["ring", "flate2"] }
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+thiserror = "2.0"
+tokio = { version = "1", features = ["net", "time", "io-util", "rt", "sync", "macros"] }
+
+[dev-dependencies]
+tempfile = "3"
+tokio = { version = "1", features = ["rt-multi-thread"] }

@@ -14,8 +14,28 @@ val tauriProperties = Properties().apply {
     }
 }
 
+// The release key stays out of the repository: keystore.properties beside
+// this project's settings.gradle names it, with its passwords, and is
+// gitignored. Without it a release build comes out unsigned.
+val keystoreProperties = Properties().apply {
+    val propFile = rootProject.file("keystore.properties")
+    if (propFile.exists()) {
+        propFile.inputStream().use { load(it) }
+    }
+}
+
 android {
     compileSdk = 37
+    signingConfigs {
+        if (!keystoreProperties.isEmpty) {
+            create("release") {
+                keyAlias = keystoreProperties.getProperty("keyAlias")
+                keyPassword = keystoreProperties.getProperty("password")
+                storeFile = file(keystoreProperties.getProperty("storeFile"))
+                storePassword = keystoreProperties.getProperty("password")
+            }
+        }
+    }
     namespace = "dev.burrow.mobile"
     defaultConfig {
         manifestPlaceholders["usesCleartextTraffic"] = "false"
@@ -40,6 +60,7 @@ android {
             }
         }
         getByName("release") {
+            signingConfigs.findByName("release")?.let { signingConfig = it }
             optimization {
                enable = true
             }
