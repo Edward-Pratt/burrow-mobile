@@ -48,6 +48,7 @@ export const link = {
   pin: (key: string) => invoke<void>("pin", { key }),
   forget: () => invoke<void>("forget"),
   reconnect: () => invoke<void>("reconnect"),
+  allowLocalNetwork: () => invoke<boolean>("allow_local_network"),
 };
 
 export function onLink(handler: (state: LinkState) => void): Promise<UnlistenFn> {

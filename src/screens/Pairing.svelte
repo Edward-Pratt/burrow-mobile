@@ -5,6 +5,7 @@
   // those on.
   import { link } from "../lib/api";
   import { app } from "../lib/state.svelte";
+  import { isLocal } from "../lib/local";
   import { clean } from "../lib/text";
   import type { Paired } from "../lib/types";
 
@@ -47,6 +48,12 @@
     copied = true;
   }
 
+  async function pair() {
+    // Android asks once; a refusal shows as a computer that doesn't answer.
+    if (isLocal(address)) await link.allowLocalNetwork();
+    await link.pair(address, port, user);
+  }
+
   function forget() {
     if (confirm("Forget this computer? The phone will need pairing again.")) act(link.forget);
   }
@@ -70,7 +77,7 @@
       <button onclick={copy}>{copied ? "Copied" : "Copy the line"}</button>
     {/if}
     {#if app.link.state === "unpaired"}
-      <button class="primary" disabled={!address || !user} onclick={() => act(() => link.pair(address, port, user))}>
+      <button class="primary" disabled={!address || !user} onclick={() => act(pair)}>
         Pair
       </button>
     {:else}

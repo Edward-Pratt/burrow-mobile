@@ -2,6 +2,7 @@
 //! `burrow-link`, so it builds and tests like any crate.
 
 mod commands;
+mod local_network;
 
 use std::sync::{Arc, Mutex};
 
@@ -14,6 +15,7 @@ pub(crate) struct LastState(pub Mutex<LinkState>);
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
+        .plugin(local_network::plugin())
         .setup(|app| {
             let dir = app.path().app_data_dir()?;
             app.manage(LastState(Mutex::new(LinkState::Connecting)));
@@ -51,6 +53,7 @@ pub fn run() {
             commands::pin,
             commands::forget,
             commands::reconnect,
+            local_network::allow_local_network,
         ])
         .run(tauri::generate_context!())
         .expect("error while running Burrow");

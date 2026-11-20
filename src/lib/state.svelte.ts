@@ -4,6 +4,7 @@
 // may have been missed, so nothing here outlives a gap.
 
 import { daemon, link as linkApi, onEvent, onLink, onRelist } from "./api";
+import { isLocal } from "./local";
 import type { Alert, Event, LinkState, Node, NodeId, Prompt, SessionId } from "./types";
 
 export interface OpenPrompt {
@@ -129,4 +130,11 @@ export async function start() {
   await onEvent(apply);
   app.link = await linkApi.state();
   if (app.link.state === "connected") await relist();
+  // A computer paired by its LAN address needs the permission kept, and a
+  // reinstall or the user may have taken it away.
+  const paired = await linkApi.paired();
+  if (paired && isLocal(paired.address)) {
+    await linkApi.allowLocalNetwork();
+    linkApi.reconnect();
+  }
 }
