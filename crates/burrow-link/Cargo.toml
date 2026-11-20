@@ -8,7 +8,7 @@ license.workspace = true
 repository.workspace = true
 
 [dependencies]
-burrow-api = { git = "https://github.com/Edward-Pratt/burrow", rev = "24c4133fe7690028b159e57f07d25f04fef51575" }
+burrow-api = { git = "https://github.com/Edward-Pratt/burrow", rev = "d41703eb3d04323d9861941c0fcb3e77513301a9" }
 rand = "0.10"
 russh = { version = "0.64", default-features = false, features = ["ring", "flate2"] }
 serde = { version = "1.0", features = ["derive"] }
