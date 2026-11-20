@@ -1,12 +1,15 @@
-//! One live connection to the daemon, with the sessions `open_monitor`
-//! gave it: the only ones the page may close or answer prompts for. They
-//! go together, so an answer from an old connection can't add to a new
-//! one's, whose daemon may have restarted and handed out the same ids.
+//! One live connection to the daemon, with the sessions the page may
+//! close, answer prompts for or type into: the ones this connection opened,
+//! and kept terminals, which only the phone keeps and which outlive the
+//! connection that opened them. Those are learned from listing sessions on
+//! each connection, never stored, since a daemon that restarted may have
+//! handed out the same ids again.
 
 use std::collections::HashSet;
 use std::sync::{Arc, Mutex};
 
 use burrow_api::{Client, Command, Event, Response, SessionId, SessionState};
+use tokio::sync::mpsc;
 
 use crate::allow::own_session;
 use crate::{Error, Result};
@@ -42,11 +45,24 @@ impl Conn {
         Ok(response)
     }
 
+    /// Attaches to a kept terminal the page may use: what it kept, then its
+    /// output.
+    pub(crate) async fn attach(&self, session: SessionId) -> Result<Attached> {
+        self.opened.lock().unwrap().owns(session)?;
+        self.client
+            .attach_output(session)
+            .await
+            .map_err(|e| Error::Daemon(e.to_string()))
+    }
+
     /// Takes note of a session that ended, which is no longer the page's.
     pub(crate) fn saw(&self, event: &Event) {
         self.opened.lock().unwrap().saw(event);
     }
 }
+
+/// A kept terminal's replay, and its output from there on.
+pub(crate) type Attached = (Vec<u8>, mpsc::Receiver<Vec<u8>>);
 
 #[derive(Default)]
 struct Opened(HashSet<SessionId>);
@@ -54,16 +70,28 @@ struct Opened(HashSet<SessionId>);
 impl Opened {
     fn check(&self, command: &Command) -> Result<()> {
         match own_session(command) {
-            Some(session) if !self.0.contains(&session) => {
-                Err(Error::invalid("Session", "isn't one the phone opened"))
-            }
-            _ => Ok(()),
+            Some(session) => self.owns(session),
+            None => Ok(()),
         }
     }
 
+    fn owns(&self, session: SessionId) -> Result<()> {
+        if !self.0.contains(&session) {
+            return Err(Error::invalid("Session", "isn't one the phone opened"));
+        }
+        Ok(())
+    }
+
     fn record(&mut self, response: &Response, closed: Option<SessionId>) {
-        if let Response::Session { session } = response {
-            self.0.insert(*session);
+        match response {
+            Response::Session { session } => {
+                self.0.insert(*session);
+            }
+            Response::Sessions { sessions } => {
+                self.0
+                    .extend(sessions.iter().filter(|s| s.kept).map(|s| s.session));
+            }
+            _ => {}
         }
         if let Some(session) = closed {
             self.0.remove(&session);
@@ -84,7 +112,7 @@ impl Opened {
 
 #[cfg(test)]
 mod tests {
-    use burrow_api::{NodeId, PromptAnswer};
+    use burrow_api::{NodeId, PromptAnswer, SessionInfo, SessionKind};
 
     use super::*;
 
@@ -109,6 +137,24 @@ mod tests {
         assert!(opened.check(&answer(3)).is_ok());
         assert!(opened.check(&answer(4)).is_err());
         assert!(opened.check(&Command::ListNodes).is_ok());
+    }
+
+    #[test]
+    fn listed_kept_terminals_are_the_pages() {
+        let mut opened = Opened::default();
+        let listed = |session: u64, kept: bool| SessionInfo {
+            session: SessionId(session),
+            node: NodeId(Default::default()),
+            kind: SessionKind::Terminal,
+            state: SessionState::Connected,
+            background: false,
+            kept,
+            attached: false,
+        };
+        let sessions = vec![listed(6, true), listed(7, false)];
+        opened.record(&Response::Sessions { sessions }, None);
+        assert!(opened.owns(SessionId(6)).is_ok());
+        assert!(opened.owns(SessionId(7)).is_err());
     }
 
     #[test]

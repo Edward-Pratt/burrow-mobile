@@ -11,5 +11,6 @@ pub mod hostkey;
 pub mod keys;
 pub mod link;
 pub mod pairing;
+mod terminal;
 
 pub use error::{Error, Result};

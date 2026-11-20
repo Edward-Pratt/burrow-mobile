@@ -32,6 +32,8 @@ pub enum Error {
     KeyRefused,
     #[error("SSH: {0}")]
     Ssh(String),
+    #[error("unlock the phone to use shells")]
+    Locked,
     #[error("burrowd: {0}")]
     Daemon(String),
 }
