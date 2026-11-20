@@ -1,0 +1,47 @@
+name: Set up
+description: System packages, Rust with a build cache, and the frontend's dependencies
+
+inputs:
+  cache-key:
+    description: Which job's build cache to use
+    required: true
+
+runs:
+  using: composite
+  steps:
+    # The desktop build of the Tauri crate links WebKitGTK; it is only
+    # built here so clippy and the tests see the whole workspace. openssh
+    # is the sshd the link tests start. Rebuilding the man page index after
+    # each package is most of what apt spends on a runner, and nobody reads
+    # them here.
+    - name: Install system packages
+      shell: bash
+      run: |
+        sudo rm -f /var/lib/man-db/auto-update
+        sudo apt-get -o Acquire::Retries=3 update
+        sudo apt-get -o Acquire::Retries=3 install -y --no-install-recommends \
+          libwebkit2gtk-4.1-dev librsvg2-dev libxdo-dev openssh-server
+        # sshd refuses to start without its privilege-separation folder,
+        # which only the service unit creates.
+        sudo mkdir -p /run/sshd
+
+    - name: Set up Rust
+      shell: bash
+      run: rustup toolchain install stable --profile minimal --component rustfmt,clippy
+
+    # After the toolchain, since its version is part of the key.
+    - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
+      with:
+        key: ${{ inputs.cache-key }}
+        cache-on-failure: true
+
+    - uses: actions/setup-node@v4
+      with:
+        node-version: 24
+    - uses: pnpm/action-setup@v4
+      with:
+        version: 12
+
+    - name: Frontend dependencies
+      shell: bash
+      run: pnpm install --frozen-lockfile
