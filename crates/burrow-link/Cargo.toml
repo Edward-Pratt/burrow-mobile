@@ -1,0 +1,10 @@
+[package]
+name = "burrow-link"
+description = "The phone's side of Burrow without Tauri: its key, the pairing, and the SSH hop to burrowd"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[dependencies]

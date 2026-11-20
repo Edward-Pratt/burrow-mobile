@@ -1,0 +1,21 @@
+[package]
+name = "burrow-mobile"
+description = "Burrow on Android: a client of burrowd over SSH"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[lib]
+name = "burrow_mobile_lib"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[build-dependencies]
+tauri-build = { version = "2.7.6", features = [] }
+
+[dependencies]
+burrow-link = { path = "../crates/burrow-link" }
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+tauri = { version = "2.12.7", features = [] }
