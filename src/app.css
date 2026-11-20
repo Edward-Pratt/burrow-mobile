@@ -1,0 +1,86 @@
+/* Colours for light and dark, following the phone's setting. */
+:root {
+  --bg: #ffffff;
+  --fg: #1c1b1f;
+  --surface: #f1f0f4;
+  --line: #e2e1e6;
+  --muted: #6b6a70;
+  --accent: #2f6fdb;
+  --danger: #c62828;
+  color-scheme: light dark;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #141317;
+    --fg: #e6e1e5;
+    --surface: #222126;
+    --line: #2f2e33;
+    --muted: #9c9aa1;
+    --accent: #8ab4f8;
+    --danger: #ef7a7a;
+  }
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#app {
+  height: 100%;
+  margin: 0;
+}
+
+body {
+  background: var(--bg);
+  color: var(--fg);
+  font: 16px/1.4 system-ui, sans-serif;
+  -webkit-tap-highlight-color: transparent;
+}
+
+#app {
+  display: flex;
+  flex-direction: column;
+}
+
+button {
+  padding: 10px 14px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--surface);
+  color: var(--fg);
+  font: inherit;
+}
+
+button.primary {
+  border-color: var(--accent);
+  background: var(--accent);
+  color: var(--bg);
+}
+
+button.plain {
+  border: 0;
+  background: none;
+  color: var(--accent);
+  padding: 6px 0;
+}
+
+button:disabled {
+  opacity: 0.5;
+}
+
+input {
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--surface);
+  color: var(--fg);
+  font: inherit;
+}
+
+code {
+  font-size: 0.9em;
+  overflow-wrap: anywhere;
+}

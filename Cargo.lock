@@ -349,6 +349,7 @@ dependencies = [
 name = "burrow-mobile"
 version = "0.1.0"
 dependencies = [
+ "burrow-api",
  "burrow-link",
  "serde",
  "serde_json",
