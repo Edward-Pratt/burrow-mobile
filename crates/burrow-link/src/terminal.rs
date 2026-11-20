@@ -20,9 +20,11 @@ impl Bridge {
         self.inner.unlocked.store(true, Ordering::SeqCst);
     }
 
-    /// The app went to the background: shells wait for the unlock again.
+    /// The app went to the background: shells wait for the unlock again,
+    /// and the streams attached end.
     pub fn lock(&self) {
         self.inner.unlocked.store(false, Ordering::SeqCst);
+        self.inner.locks.send_replace(());
     }
 
     pub fn is_unlocked(&self) -> bool {
@@ -38,10 +40,29 @@ impl Bridge {
 
     /// Attaches to a kept terminal the phone opened or listed: returns what
     /// it kept, then a stream of its output. The stream ends when the
-    /// terminal does, or when another reader takes over or this one falls
-    /// behind, in which case the page attaches again.
+    /// terminal does, when another reader takes over or this one falls
+    /// behind, in which case the page attaches again, and when shells lock.
     pub async fn attach(&self, session: SessionId) -> Result<(Vec<u8>, mpsc::Receiver<Vec<u8>>)> {
+        let mut locks = self.inner.locks.subscribe();
         self.check_unlocked()?;
-        self.conn()?.attach(session).await
+        let (replay, mut stream) = self.conn()?.attach(session).await?;
+        // Locked while attaching: nothing reaches the page.
+        self.check_unlocked()?;
+        let (tx, rx) = mpsc::channel(1);
+        tokio::spawn(async move {
+            loop {
+                tokio::select! {
+                    chunk = stream.recv() => {
+                        let Some(chunk) = chunk else { return };
+                        if tx.send(chunk).await.is_err() {
+                            return;
+                        }
+                    }
+                    // Dropping the stream detaches; the terminal runs on.
+                    _ = locks.changed() => return,
+                }
+            }
+        });
+        Ok((replay, rx))
     }
 }

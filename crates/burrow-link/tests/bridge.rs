@@ -87,4 +87,7 @@ async fn the_bridge_pairs_pins_connects_and_filters() {
     assert!(matches!(refused, Ok(Err(Error::Invalid { .. }))));
     bridge.lock();
     assert!(!bridge.is_unlocked());
+    let attach = bridge.attach(burrow_api::SessionId(7));
+    let locked = tokio::time::timeout(Duration::from_secs(2), attach).await;
+    assert!(matches!(locked, Ok(Err(Error::Locked))));
 }

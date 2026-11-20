@@ -62,6 +62,8 @@ pub(crate) struct Inner {
     /// The user unlocked the device for shells since the app last went to
     /// the background. See [`crate::terminal`].
     pub(crate) unlocked: AtomicBool,
+    /// Told whenever shells lock, so the streams attached end at once.
+    pub(crate) locks: tokio::sync::watch::Sender<()>,
     wake: Notify,
     /// The pairing changed, so a live connection is to the wrong computer.
     restart: AtomicBool,
@@ -78,6 +80,7 @@ impl Bridge {
             wake: Notify::new(),
             restart: AtomicBool::new(false),
             unlocked: AtomicBool::new(false),
+            locks: tokio::sync::watch::Sender::new(()),
         });
         tokio::spawn(run(inner.clone()));
         Bridge { inner }

@@ -8,7 +8,7 @@
 use std::collections::HashSet;
 use std::sync::{Arc, Mutex};
 
-use burrow_api::{Client, Command, Event, Response, SessionId, SessionState};
+use burrow_api::{Client, Command, Event, Response, SessionId, SessionKind, SessionState};
 use tokio::sync::mpsc;
 
 use crate::allow::own_session;
@@ -87,9 +87,13 @@ impl Opened {
             Response::Session { session } => {
                 self.0.insert(*session);
             }
+            // Only the phone keeps terminals; anything else that says it is
+            // kept isn't the page's to type into.
             Response::Sessions { sessions } => {
-                self.0
-                    .extend(sessions.iter().filter(|s| s.kept).map(|s| s.session));
+                let kept = sessions
+                    .iter()
+                    .filter(|s| s.kept && s.kind == SessionKind::Terminal);
+                self.0.extend(kept.map(|s| s.session));
             }
             _ => {}
         }
@@ -112,7 +116,7 @@ impl Opened {
 
 #[cfg(test)]
 mod tests {
-    use burrow_api::{NodeId, PromptAnswer, SessionInfo, SessionKind};
+    use burrow_api::{NodeId, PromptAnswer, SessionInfo};
 
     use super::*;
 
@@ -151,10 +155,13 @@ mod tests {
             kept,
             attached: false,
         };
-        let sessions = vec![listed(6, true), listed(7, false)];
+        let mut desktop = listed(8, true);
+        desktop.kind = SessionKind::Vnc;
+        let sessions = vec![listed(6, true), listed(7, false), desktop];
         opened.record(&Response::Sessions { sessions }, None);
         assert!(opened.owns(SessionId(6)).is_ok());
         assert!(opened.owns(SessionId(7)).is_err());
+        assert!(opened.owns(SessionId(8)).is_err());
     }
 
     #[test]
