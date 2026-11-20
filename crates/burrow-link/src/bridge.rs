@@ -4,17 +4,18 @@
 //! everything again whenever it may have missed some. Only the commands in
 //! [`allow`](crate::allow) get through to the daemon.
 
+use std::collections::HashSet;
 use std::path::PathBuf;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
-use burrow_api::{Client, Command, Event, Response};
+use burrow_api::{Client, Command, Event, Response, SessionId};
 use serde::Serialize;
 use tokio::sync::Notify;
 use tokio::sync::broadcast::error::RecvError;
 
-use crate::allow::allowed;
+use crate::allow::{allowed, own_session};
 use crate::backoff::Backoff;
 use crate::keys::PhoneKey;
 use crate::link::Link;
@@ -58,6 +59,9 @@ struct Inner {
     dir: PathBuf,
     sink: Sink,
     client: Mutex<Option<Client>>,
+    /// The sessions `open_monitor` gave this connection, the only ones
+    /// the page may close or answer prompts for.
+    opened: Mutex<HashSet<SessionId>>,
     wake: Notify,
     /// The pairing changed, so a live connection is to the wrong computer.
     restart: AtomicBool,
@@ -71,6 +75,7 @@ impl Bridge {
             dir,
             sink,
             client: Mutex::new(None),
+            opened: Mutex::default(),
             wake: Notify::new(),
             restart: AtomicBool::new(false),
         });
@@ -82,12 +87,21 @@ impl Bridge {
         if !allowed(&command) {
             return Err(Error::invalid("Command", "isn't one the phone sends"));
         }
+        if let Some(session) = own_session(&command)
+            && !self.inner.opened.lock().unwrap().contains(&session)
+        {
+            return Err(Error::invalid("Session", "isn't one the phone opened"));
+        }
         let client = self.inner.client.lock().unwrap().clone();
         let client = client.ok_or_else(|| Error::Daemon("not connected".into()))?;
-        client
+        let response = client
             .execute(command)
             .await
-            .map_err(|e| Error::Daemon(e.to_string()))
+            .map_err(|e| Error::Daemon(e.to_string()))?;
+        if let Response::Session { session } = &response {
+            self.inner.opened.lock().unwrap().insert(*session);
+        }
+        Ok(response)
     }
 
     /// Tries again now: the app came back to the front, or the user asked.
@@ -186,6 +200,8 @@ async fn attempt(inner: &Inner, backoff: &mut Backoff) -> Option<Duration> {
     match Link::connect(&pairing, &key).await {
         Ok(link) => {
             backoff.reset();
+            // Sessions from an earlier connection are gone with it.
+            inner.opened.lock().unwrap().clear();
             *inner.client.lock().unwrap() = Some(link.client().clone());
             inner.state(LinkState::Connected {
                 build: link.client().info().build.clone(),

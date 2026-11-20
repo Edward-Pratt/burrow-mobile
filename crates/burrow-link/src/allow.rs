@@ -2,7 +2,7 @@
 //! bug or an injected script there should reach no more than v1 needs: no
 //! terminals, files, commands, secrets or changes to nodes.
 
-use burrow_api::Command;
+use burrow_api::{Command, SessionId};
 
 /// Whether `command` is one the phone's screens use.
 pub fn allowed(command: &Command) -> bool {
@@ -17,6 +17,16 @@ pub fn allowed(command: &Command) -> bool {
             | Command::MonitorTrend { .. }
             | Command::AnswerPrompt { .. }
     )
+}
+
+/// The session a command acts on, for the ones that may only act on a
+/// session the phone opened itself, never on the desktop's terminals or
+/// their prompts.
+pub fn own_session(command: &Command) -> Option<SessionId> {
+    match command {
+        Command::CloseSession { session } | Command::AnswerPrompt { session, .. } => Some(*session),
+        _ => None,
+    }
 }
 
 #[cfg(test)]
@@ -38,6 +48,16 @@ mod tests {
         ] {
             assert!(allowed(&parse(json)), "{json}");
         }
+    }
+
+    #[test]
+    fn closing_and_answering_name_their_session() {
+        let close = parse(r#"{"type":"close_session","session":3}"#);
+        assert_eq!(own_session(&close), Some(SessionId(3)));
+        let answer =
+            parse(r#"{"type":"answer_prompt","session":4,"prompt":1,"answer":{"type":"confirm"}}"#);
+        assert_eq!(own_session(&answer), Some(SessionId(4)));
+        assert_eq!(own_session(&parse(r#"{"type":"list_nodes"}"#)), None);
     }
 
     #[test]

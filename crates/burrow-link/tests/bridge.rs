@@ -60,4 +60,12 @@ async fn the_bridge_pairs_pins_connects_and_filters() {
         .execute(serde_json::from_str(r#"{"type":"list_addons"}"#).unwrap())
         .await;
     assert!(refused.is_err());
+    // A session the phone didn't open, such as a desktop terminal, is
+    // refused before it reaches the daemon, which the stand-in proxy
+    // would never answer.
+    let close = Command::CloseSession {
+        session: burrow_api::SessionId(7),
+    };
+    let refused = tokio::time::timeout(Duration::from_secs(2), bridge.execute(close)).await;
+    assert!(matches!(refused, Ok(Err(_))));
 }
