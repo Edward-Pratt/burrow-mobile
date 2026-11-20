@@ -110,6 +110,11 @@ impl Bridge {
         self.inner.wake.notify_one();
     }
 
+    /// The computer the phone is paired with, if any.
+    pub fn paired(&self) -> Result<Option<Pairing>> {
+        Pairing::load(&self.inner.dir)
+    }
+
     /// The line for `user`'s `authorized_keys` on the computer.
     pub fn key_line(&self, user: &str) -> Result<String> {
         let key = PhoneKey::load_or_create(&self.inner.dir)?;
