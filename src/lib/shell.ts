@@ -3,7 +3,7 @@
 //
 // The stream ends when the connection drops, when shells lock, when
 // another reader takes over or this one fell behind. Each time, the shell
-// lists sessions (which tells the bridge the kept terminals are the
+// lists sessions (which tells the bridge the terminals it kept are the
 // phone's on this connection) and attaches again with a backoff, unless
 // the terminal is gone or shells are locked.
 

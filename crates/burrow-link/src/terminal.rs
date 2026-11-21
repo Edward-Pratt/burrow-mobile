@@ -39,7 +39,7 @@ impl Bridge {
         Ok(())
     }
 
-    /// Attaches to a kept terminal the phone opened or listed: returns what
+    /// Attaches to a terminal the phone opened or kept: returns what
     /// it kept, then a stream of its output. The stream ends when the
     /// terminal does, when another reader takes over or this one falls
     /// behind, in which case the page attaches again, when shells lock, and
