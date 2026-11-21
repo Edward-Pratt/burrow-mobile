@@ -9,7 +9,7 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
-use burrow_api::{Command, Event, Response};
+use burrow_api::{Command, Event, Response, SessionId};
 use serde::Serialize;
 use tokio::sync::Notify;
 use tokio::sync::broadcast::error::RecvError;
@@ -64,6 +64,9 @@ pub(crate) struct Inner {
     pub(crate) unlocked: AtomicBool,
     /// Told whenever shells lock, so the streams attached end at once.
     pub(crate) locks: tokio::sync::watch::Sender<()>,
+    /// The stream attached for each shell the page shows, to detach it
+    /// when the page leaves.
+    pub(crate) streams: Mutex<std::collections::HashMap<SessionId, tokio::task::AbortHandle>>,
     wake: Notify,
     /// The pairing changed, so a live connection is to the wrong computer.
     restart: AtomicBool,
@@ -81,6 +84,7 @@ impl Bridge {
             restart: AtomicBool::new(false),
             unlocked: AtomicBool::new(false),
             locks: tokio::sync::watch::Sender::new(()),
+            streams: Mutex::default(),
         });
         tokio::spawn(run(inner.clone()));
         Bridge { inner }

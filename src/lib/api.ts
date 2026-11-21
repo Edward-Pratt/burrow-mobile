@@ -66,6 +66,7 @@ export const shells = {
     channel.onmessage = onOutput;
     return invoke<void>("attach_terminal", { session, onOutput: channel });
   },
+  detach: (session: SessionId) => invoke<void>("detach_terminal", { session }),
 };
 
 export const link = {

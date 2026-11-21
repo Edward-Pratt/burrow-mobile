@@ -67,6 +67,7 @@ pub fn run() {
             shells::shells_unlocked,
             shells::unlock_shells,
             shells::attach_terminal,
+            shells::detach_terminal,
         ])
         .run(tauri::generate_context!())
         .expect("error while running Burrow");

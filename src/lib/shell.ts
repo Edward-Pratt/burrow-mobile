@@ -93,8 +93,11 @@ export class Shell {
       takeTerminals(sessions);
       if (!sessions.some((s) => s.session === session)) return this.status({ state: "closed" });
       await shells.attach(session, (output) => this.take(attach, output));
-      // A resize after attaching makes most full-screen programs redraw.
-      await daemon.resize(session, this.screen.cols, this.screen.rows);
+      // A program redraws on a change of size, and only a change: one row
+      // fewer and back makes a full-screen one draw itself again whole.
+      const { cols, rows } = this.screen;
+      await daemon.resize(session, cols, Math.max(rows - 1, 1));
+      await daemon.resize(session, cols, rows);
     } catch (e) {
       if (isLocked(e)) return this.status({ state: "locked" });
       this.again();
@@ -157,10 +160,12 @@ export class Shell {
     daemon.resize(this.session, cols, rows).catch(() => {});
   }
 
-  /// The page left. The terminal runs on in the daemon.
+  /// The page left: its stream goes, and the terminal runs on in the
+  /// daemon, unread.
   stop() {
     this.stopped = true;
     this.attaches++;
     clearTimeout(this.timer);
+    if (this.session !== null) shells.detach(this.session).catch(() => {});
   }
 }

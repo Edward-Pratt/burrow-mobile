@@ -73,6 +73,12 @@ async fn ask(_app: AppHandle) -> Result<(), String> {
     Err("shells need the phone's unlock; this build has none".into())
 }
 
+/// The page stopped showing a shell. It runs on in the daemon, unread.
+#[tauri::command]
+pub fn detach_terminal(bridge: State<'_, Bridge>, session: SessionId) {
+    bridge.detach(session);
+}
+
 /// Attaches to a kept terminal and streams it to `on_output`, until the
 /// stream ends or the page stops listening.
 #[tauri::command]
