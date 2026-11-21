@@ -15,7 +15,7 @@ crate-type = ["staticlib", "cdylib", "rlib"]
 tauri-build = { version = "2.7.6", features = [] }
 
 [dependencies]
-burrow-api = { git = "https://github.com/Edward-Pratt/burrow", rev = "d41703eb3d04323d9861941c0fcb3e77513301a9" }
+burrow-api = { git = "https://github.com/Edward-Pratt/burrow", rev = "e63ec4faf7e7c1d08038d7c3573447833b6272a1" }
 burrow-link = { path = "../crates/burrow-link" }
 data-encoding = "2.11"
 serde = { version = "1.0", features = ["derive"] }

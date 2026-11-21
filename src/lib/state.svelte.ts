@@ -76,10 +76,13 @@ async function relist() {
   }
 }
 
-/// Takes a listing's kept terminals, which are the phone's, and their
-/// prompts with them: a shell may have asked while the phone was away.
+/// Takes a listing's terminals the phone kept, and their prompts with
+/// them: a shell may have asked while the phone was away. One the CLI or
+/// the window kept isn't the phone's; the bridge would refuse it anyway.
 export function takeTerminals(sessions: SessionInfo[]) {
-  app.terminals = sessions.filter((s) => s.kept && s.kind === "terminal");
+  app.terminals = sessions.filter(
+    (s) => s.kept && s.kept_by === "mobile" && s.kind === "terminal",
+  );
   for (const t of app.terminals) claim(t.session);
 }
 

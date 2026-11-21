@@ -49,7 +49,7 @@ To try shells there, give the AVD a PIN (`adb shell locksettings set-pin 1234`),
 - **The daemon's text is untrusted.** Show it as Svelte text, never `{@html}`, and strip control characters.
 - **Only the commands the screens need** cross from the webview, through the bridge's allowlist (`allow.rs`), not a generic `execute`. Shells are login shells only: `open_terminal` with `run` is refused.
 - **Shells wait for the device unlock,** held by the bridge in Rust and asked for with `tauri-plugin-biometric`, which only Rust calls: the page has no permission for the plugin. Suspending the app locks shells again and ends their streams, so no shell output reaches a locked page.
-- **The page types only into its own shells:** terminals this connection opened, and kept terminals a listing names, learned anew on each connection. xterm gets no clipboard or link addons, since the server's output goes straight into it.
+- **The page types only into its own shells:** terminals this connection opened, and terminals a listing says the phone kept (`kept_by: mobile`), learned anew on each connection. xterm gets no clipboard or link addons, since the server's output goes straight into it.
 - **Style:** as in Burrow: comments say why, in plain sentences; UI text in sentence case, with "…" on items that open a dialog.
 
 ## Workflow

@@ -42,8 +42,10 @@ export type SessionInfo = {
   node: NodeId;
   kind: string;
   background?: boolean;
-  /// A terminal that outlives its connection: the phone's shells.
+  /// A terminal that outlives its connection, such as the phone's shells.
   kept?: boolean;
+  /// The role of the client that kept it: "mobile" for the phone's own.
+  kept_by?: "gui" | "cli" | "mcp" | "mobile";
   /// A kept terminal someone is reading now, maybe this phone.
   attached?: boolean;
 } & SessionState;

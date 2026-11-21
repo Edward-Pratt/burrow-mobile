@@ -1,14 +1,14 @@
 //! One live connection to the daemon, with the sessions the page may
 //! close, answer prompts for or type into: the ones this connection opened,
-//! and kept terminals, which only the phone keeps and which outlive the
-//! connection that opened them. Those are learned from listing sessions on
-//! each connection, never stored, since a daemon that restarted may have
-//! handed out the same ids again.
+//! and the terminals the phone kept, which outlive the connection that
+//! opened them. Those are learned from listing sessions on each connection,
+//! where the daemon names who kept each one, never stored, since a daemon
+//! that restarted may have handed out the same ids again.
 
 use std::collections::HashSet;
 use std::sync::{Arc, Mutex};
 
-use burrow_api::{Client, Command, Event, Response, SessionId, SessionKind, SessionState};
+use burrow_api::{Client, Command, Event, Response, Role, SessionId, SessionKind, SessionState};
 use tokio::sync::mpsc;
 
 use crate::allow::own_session;
@@ -87,12 +87,12 @@ impl Opened {
             Response::Session { session } => {
                 self.0.insert(*session);
             }
-            // Only the phone keeps terminals; anything else that says it is
-            // kept isn't the page's to type into.
+            // A terminal the CLI or the window kept isn't the page's to
+            // type into, nor is one from a daemon too old to say who kept it.
             Response::Sessions { sessions } => {
-                let kept = sessions
-                    .iter()
-                    .filter(|s| s.kept && s.kind == SessionKind::Terminal);
+                let kept = sessions.iter().filter(|s| {
+                    s.kept && s.kind == SessionKind::Terminal && s.kept_by == Some(Role::Mobile)
+                });
                 self.0.extend(kept.map(|s| s.session));
             }
             _ => {}
@@ -144,24 +144,36 @@ mod tests {
     }
 
     #[test]
-    fn listed_kept_terminals_are_the_pages() {
+    fn only_terminals_the_phone_kept_are_the_pages() {
         let mut opened = Opened::default();
-        let listed = |session: u64, kept: bool| SessionInfo {
+        let listed = |session: u64, kept_by: Option<Role>| SessionInfo {
             session: SessionId(session),
             node: NodeId(Default::default()),
             kind: SessionKind::Terminal,
             state: SessionState::Connected,
             background: false,
-            kept,
+            kept: kept_by.is_some(),
+            kept_by,
             attached: false,
         };
-        let mut desktop = listed(8, true);
+        let mut desktop = listed(8, Some(Role::Mobile));
         desktop.kind = SessionKind::Vnc;
-        let sessions = vec![listed(6, true), listed(7, false), desktop];
+        // An older daemon says a terminal is kept, but not by whom.
+        let mut unnamed = listed(11, None);
+        unnamed.kept = true;
+        let sessions = vec![
+            listed(6, Some(Role::Mobile)),
+            listed(7, None),
+            desktop,
+            listed(9, Some(Role::Cli)),
+            listed(10, Some(Role::Gui)),
+            unnamed,
+        ];
         opened.record(&Response::Sessions { sessions }, None);
         assert!(opened.owns(SessionId(6)).is_ok());
-        assert!(opened.owns(SessionId(7)).is_err());
-        assert!(opened.owns(SessionId(8)).is_err());
+        for other in [7, 8, 9, 10, 11] {
+            assert!(opened.owns(SessionId(other)).is_err(), "{other}");
+        }
     }
 
     #[test]
