@@ -8,6 +8,7 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use burrow_api::{Command, Response};
+use burrow_link::Error;
 use burrow_link::bridge::{Bridge, LinkState, Outward};
 use tempfile::TempDir;
 use tokio::sync::mpsc;
@@ -68,4 +69,25 @@ async fn the_bridge_pairs_pins_connects_and_filters() {
     };
     let refused = tokio::time::timeout(Duration::from_secs(2), bridge.execute(close)).await;
     assert!(matches!(refused, Ok(Err(_))));
+
+    // Shells wait for the device unlock, also before the daemon.
+    let node = "00000000-0000-0000-0000-000000000001";
+    let open = format!(r#"{{"type":"open_terminal","node":"{node}","cols":80,"rows":24}}"#);
+    let open = bridge.execute(serde_json::from_str(&open).unwrap());
+    let locked = tokio::time::timeout(Duration::from_secs(2), open).await;
+    assert!(matches!(locked, Ok(Err(Error::Locked))), "{locked:?}");
+    let attach = bridge.attach(burrow_api::SessionId(7));
+    let locked = tokio::time::timeout(Duration::from_secs(2), attach).await;
+    assert!(matches!(locked, Ok(Err(Error::Locked))));
+    // Unlocked, a terminal the phone neither opened nor listed is still
+    // refused before the daemon.
+    bridge.unlock();
+    let attach = bridge.attach(burrow_api::SessionId(7));
+    let refused = tokio::time::timeout(Duration::from_secs(2), attach).await;
+    assert!(matches!(refused, Ok(Err(Error::Invalid { .. }))));
+    bridge.lock();
+    assert!(!bridge.is_unlocked());
+    let attach = bridge.attach(burrow_api::SessionId(7));
+    let locked = tokio::time::timeout(Duration::from_secs(2), attach).await;
+    assert!(matches!(locked, Ok(Err(Error::Locked))));
 }

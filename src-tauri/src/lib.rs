@@ -4,6 +4,7 @@
 mod commands;
 mod local_network;
 mod network;
+mod shells;
 
 use std::sync::{Arc, Mutex};
 
@@ -15,7 +16,10 @@ pub(crate) struct LastState(pub Mutex<LinkState>);
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
-    tauri::Builder::default()
+    let builder = tauri::Builder::default();
+    #[cfg(mobile)]
+    let builder = builder.plugin(tauri_plugin_biometric::init());
+    builder
         .plugin(local_network::plugin())
         .plugin(network::plugin())
         .setup(|app| {
@@ -43,8 +47,11 @@ pub fn run() {
             // Coming back to the front, a connection may have died while
             // the phone slept; the bridge checks it now rather than later.
             #[cfg(mobile)]
-            if let tauri::WindowEvent::Resumed = _event {
-                _window.state::<Bridge>().reconnect();
+            match _event {
+                tauri::WindowEvent::Resumed => _window.state::<Bridge>().reconnect(),
+                // Shells ask for the unlock again after the app was away.
+                tauri::WindowEvent::Suspended => _window.state::<Bridge>().lock(),
+                _ => {}
             }
         })
         .invoke_handler(tauri::generate_handler![
@@ -57,6 +64,10 @@ pub fn run() {
             commands::forget,
             commands::reconnect,
             local_network::allow_local_network,
+            shells::shells_unlocked,
+            shells::unlock_shells,
+            shells::attach_terminal,
+            shells::detach_terminal,
         ])
         .run(tauri::generate_context!())
         .expect("error while running Burrow");

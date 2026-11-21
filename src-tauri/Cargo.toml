@@ -15,8 +15,14 @@ crate-type = ["staticlib", "cdylib", "rlib"]
 tauri-build = { version = "2.7.6", features = [] }
 
 [dependencies]
-burrow-api = { git = "https://github.com/Edward-Pratt/burrow", rev = "24c4133fe7690028b159e57f07d25f04fef51575" }
+burrow-api = { git = "https://github.com/Edward-Pratt/burrow", rev = "d41703eb3d04323d9861941c0fcb3e77513301a9" }
 burrow-link = { path = "../crates/burrow-link" }
+data-encoding = "2.11"
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 tauri = { version = "2.12.7", features = [] }
+
+# The system's fingerprint or PIN prompt, which shells wait for. Called
+# from Rust only: the page gets no permission for it.
+[target.'cfg(any(target_os = "android", target_os = "ios"))'.dependencies]
+tauri-plugin-biometric = "=2.5.0"

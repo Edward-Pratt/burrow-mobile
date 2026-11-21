@@ -40,12 +40,16 @@ adb install -r src-tauri/gen/android/app/build/outputs/apk/universal/debug/app-u
 adb exec-out screencap -p > screen.png
 ```
 
+To try shells there, give the AVD a PIN (`adb shell locksettings set-pin 1234`), type it at the unlock prompt with `adb shell input text 1234`, and type into a shell with `%s` for spaces; `adb shell input text` hands `;` and `$(…)` to the device's own shell. The prompt is a secure window, so a screenshot of it is black.
+
 ## Rules that shape the code
 
 - **The key never leaves Rust.** The webview gets the public `authorized_keys` line, never the private key. App data is excluded from backups and device transfers.
 - **The computer's host key is pinned** after the user confirms its fingerprint. A different key is refused and never re-pinned silently.
 - **The daemon's text is untrusted.** Show it as Svelte text, never `{@html}`, and strip control characters.
-- **Only the commands v1 needs** cross from the webview, through the bridge's allowlist, not a generic `execute`.
+- **Only the commands the screens need** cross from the webview, through the bridge's allowlist (`allow.rs`), not a generic `execute`. Shells are login shells only: `open_terminal` with `run` is refused.
+- **Shells wait for the device unlock,** held by the bridge in Rust and asked for with `tauri-plugin-biometric`, which only Rust calls: the page has no permission for the plugin. Suspending the app locks shells again and ends their streams, so no shell output reaches a locked page.
+- **The page types only into its own shells:** terminals this connection opened, and kept terminals a listing names, learned anew on each connection. xterm gets no clipboard or link addons, since the server's output goes straight into it.
 - **Style:** as in Burrow: comments say why, in plain sentences; UI text in sentence case, with "…" on items that open a dialog.
 
 ## Workflow

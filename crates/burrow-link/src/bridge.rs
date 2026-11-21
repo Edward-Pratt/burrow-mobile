@@ -9,12 +9,12 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
-use burrow_api::{Command, Event, Response};
+use burrow_api::{Command, Event, Response, SessionId};
 use serde::Serialize;
 use tokio::sync::Notify;
 use tokio::sync::broadcast::error::RecvError;
 
-use crate::allow::allowed;
+use crate::allow::{allowed, needs_unlock};
 use crate::backoff::Backoff;
 use crate::conn::Conn;
 use crate::keys::PhoneKey;
@@ -52,13 +52,21 @@ pub type Sink = Arc<dyn Fn(Outward) + Send + Sync>;
 
 #[derive(Clone)]
 pub struct Bridge {
-    inner: Arc<Inner>,
+    pub(crate) inner: Arc<Inner>,
 }
 
-struct Inner {
+pub(crate) struct Inner {
     dir: PathBuf,
     sink: Sink,
-    conn: Mutex<Option<Conn>>,
+    pub(crate) conn: Mutex<Option<Conn>>,
+    /// The user unlocked the device for shells since the app last went to
+    /// the background. See [`crate::terminal`].
+    pub(crate) unlocked: AtomicBool,
+    /// Told whenever shells lock, so the streams attached end at once.
+    pub(crate) locks: tokio::sync::watch::Sender<()>,
+    /// The stream attached for each shell the page shows, to detach it
+    /// when the page leaves.
+    pub(crate) streams: Mutex<std::collections::HashMap<SessionId, tokio::task::AbortHandle>>,
     wake: Notify,
     /// The pairing changed, so a live connection is to the wrong computer.
     restart: AtomicBool,
@@ -74,6 +82,9 @@ impl Bridge {
             conn: Mutex::new(None),
             wake: Notify::new(),
             restart: AtomicBool::new(false),
+            unlocked: AtomicBool::new(false),
+            locks: tokio::sync::watch::Sender::new(()),
+            streams: Mutex::default(),
         });
         tokio::spawn(run(inner.clone()));
         Bridge { inner }
@@ -83,9 +94,15 @@ impl Bridge {
         if !allowed(&command) {
             return Err(Error::invalid("Command", "isn't one the phone sends"));
         }
+        if needs_unlock(&command) {
+            self.check_unlocked()?;
+        }
+        self.conn()?.execute(command).await
+    }
+
+    pub(crate) fn conn(&self) -> Result<Conn> {
         let conn = self.inner.conn.lock().unwrap().clone();
-        let conn = conn.ok_or_else(|| Error::Daemon("not connected".into()))?;
-        conn.execute(command).await
+        conn.ok_or_else(|| Error::Daemon("not connected".into()))
     }
 
     /// Tries again now: the app came back to the front, a network came or

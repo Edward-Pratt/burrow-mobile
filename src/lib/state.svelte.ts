@@ -5,7 +5,7 @@
 
 import { daemon, link as linkApi, onEvent, onLink, onRelist } from "./api";
 import { isLocal } from "./local";
-import type { Alert, Event, LinkState, Node, NodeId, Prompt, SessionId } from "./types";
+import type { Alert, Event, LinkState, Node, NodeId, Prompt, SessionId, SessionInfo } from "./types";
 
 export interface OpenPrompt {
   session: SessionId;
@@ -22,6 +22,8 @@ export const app = $state({
   prompts: [] as OpenPrompt[],
   /// Sessions this phone opened, whose prompts it answers.
   mine: [] as SessionId[],
+  /// The shells the phone keeps, as last listed.
+  terminals: [] as SessionInfo[],
   /// Bumped on every new connection, whose sessions are all new, so pages
   /// holding one open it again. A resync on the same connection isn't one.
   connection: 0,
@@ -58,18 +60,27 @@ export function alertsFor(node: NodeId): Alert[] {
 
 async function relist() {
   try {
-    const [nodes, alerts, monitoring] = await Promise.all([
+    const [nodes, alerts, monitoring, sessions] = await Promise.all([
       daemon.nodes(),
       daemon.alerts(),
       daemon.monitoring(),
+      daemon.sessions(),
     ]);
     app.nodes = nodes;
     app.alerts = alerts;
     app.monitoring = monitoring;
+    takeTerminals(sessions);
     app.error = null;
   } catch (e) {
     app.error = String(e);
   }
+}
+
+/// Takes a listing's kept terminals, which are the phone's, and their
+/// prompts with them: a shell may have asked while the phone was away.
+export function takeTerminals(sessions: SessionInfo[]) {
+  app.terminals = sessions.filter((s) => s.kept && s.kind === "terminal");
+  for (const t of app.terminals) claim(t.session);
 }
 
 function apply(event: Event) {
@@ -83,6 +94,11 @@ function apply(event: Event) {
     case "node_deleted": {
       const id = (event as { id: NodeId }).id;
       app.nodes = app.nodes.filter((n) => n.id !== id);
+      break;
+    }
+    case "session_changed": {
+      const { session, state } = event as { session: SessionId; state: { state: string } };
+      if (state.state === "closed") app.terminals = app.terminals.filter((t) => t.session !== session);
       break;
     }
     case "monitoring_changed":

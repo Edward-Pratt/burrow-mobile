@@ -8,16 +8,19 @@
   import PromptDialog from "./components/PromptDialog.svelte";
   import { link } from "./lib/api";
   import { app, start } from "./lib/state.svelte";
-  import type { Node } from "./lib/types";
+  import type { Node, SessionId } from "./lib/types";
   import Alerts from "./screens/Alerts.svelte";
   import Hosts from "./screens/Hosts.svelte";
   import Monitor from "./screens/Monitor.svelte";
   import Pairing from "./screens/Pairing.svelte";
+  import Terminal from "./screens/Terminal.svelte";
 
   const PAIRING = ["unpaired", "new_host_key", "key_refused", "host_key_changed"];
 
   let tab = $state<"hosts" | "alerts">("hosts");
-  let open = $state<Node | null>(null);
+  /// A host's monitor or a shell, over the lists.
+  type Open = { node: Node; shell: false } | { node: Node; shell: true; session: SessionId | null };
+  let open = $state<Open | null>(null);
   const pairing = $derived(PAIRING.includes(app.link.state));
 
   onMount(() => {
@@ -28,9 +31,9 @@
     return () => window.removeEventListener("popstate", back);
   });
 
-  function show(node: Node) {
+  function show(next: Open) {
     history.pushState({}, "");
-    open = node;
+    open = next;
   }
 
   function forget() {
@@ -51,10 +54,15 @@
   </header>
   <LinkBar />
   <main>
-    {#if open}
-      {#key open.id}<Monitor node={open} />{/key}
+    {#if open?.shell}
+      {#key open}<Terminal node={open.node} session={open.session} onclosed={() => history.back()} />{/key}
+    {:else if open}
+      {#key open.node.id}<Monitor node={open.node} />{/key}
     {:else if tab === "hosts"}
-      <Hosts onopen={show} />
+      <Hosts
+        onopen={(node) => show({ node, shell: false })}
+        onshell={(node, session) => show({ node, shell: true, session })}
+      />
     {:else}
       <Alerts />
     {/if}

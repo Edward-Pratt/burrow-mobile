@@ -1,7 +1,7 @@
 {
   "$schema": "../gen/schemas/desktop-schema.json",
   "identifier": "default",
-  "description": "The app's own commands, which need no permission, and listening for the bridge's events. No plugins: no files, shell or HTTP.",
+  "description": "The app's own commands, which need no permission, and listening for the bridge's events. No plugin permissions: no files, shell or HTTP, and the biometric prompt is called from Rust only.",
   "windows": ["main"],
   "permissions": ["core:event:allow-listen", "core:event:allow-unlisten"]
 }
