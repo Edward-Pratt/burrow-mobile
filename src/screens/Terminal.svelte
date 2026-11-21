@@ -12,7 +12,7 @@
   import { daemon } from "../lib/api";
   import { Shell, type ShellStatus } from "../lib/shell";
   import { follow } from "../lib/typing";
-  import { app } from "../lib/state.svelte";
+  import { app, listenEvents } from "../lib/state.svelte";
   import { clean } from "../lib/text";
   import type { Node, SessionId } from "../lib/types";
 
@@ -25,6 +25,8 @@
   let ctrl = $state(false);
   let alt = $state(false);
   let shell: Shell | undefined;
+  let reason = $state<string | null>(null);
+  const endings = new Map<SessionId, string>();
 
   /// Applies the sticky Ctrl and Alt to a key, then lets go of them.
   function modified(data: string): string {
@@ -63,7 +65,19 @@
       get rows() { return term.rows; },
       write: (data, done) => term.write(data, done),
       reset: () => term.reset(),
-    }, (s) => (status = s));
+    }, (s) => {
+      status = s;
+      if (s.state === "closed" || s.state === "failed") reason = endings.get(shell?.session ?? -1) ?? null;
+    });
+    // Why a shell ended, such as a server refusing it a terminal. Kept by
+    // session, since the end can come before the page knows its id.
+    const stopEvents = listenEvents((e) => {
+      if (e.type !== "session_changed") return;
+      const { session, state } = e as { session: SessionId; state: { state: string; error?: string | null } };
+      if (state.state !== "closed" || !state.error) return;
+      endings.set(session, state.error);
+      if (session === shell?.session) reason = state.error;
+    });
     // Typed in our box, or xterm answering a query from the server.
     const unfollow = follow(keyboard, (data) => shell?.type(modified(data)));
     term.onData((data) => shell?.type(data));
@@ -74,6 +88,7 @@
     return () => {
       observer.disconnect();
       unfollow();
+      stopEvents();
       shell?.stop();
       term.dispose();
     };
@@ -118,9 +133,12 @@
       <button onclick={() => shell?.start()}>Unlock</button>
     </div>
   {:else if status.state === "closed"}
-    <div class="over"><p>This shell has ended.</p></div>
+    <div class="over">
+      <p>This shell has ended.</p>
+      {#if reason}<p class="why">{clean(reason)}</p>{/if}
+    </div>
   {:else if status.state === "failed"}
-    <div class="over"><p>{clean(status.error)}</p></div>
+    <div class="over"><p>{clean(reason ?? status.error)}</p></div>
   {/if}
   <KeyBar send={(data) => shell?.type(data)} bind:ctrl bind:alt />
 </div>
@@ -163,6 +181,10 @@
     opacity: 0;
     font-size: 16px;
     resize: none;
+  }
+  .why {
+    color: var(--muted);
+    font-size: 14px;
   }
   .over {
     position: absolute;
